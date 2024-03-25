@@ -13,10 +13,15 @@ ser eliminado do sistema operativo.
 De uma forma geral, pode-se dizer que a aplicação a desenvolver deve:
 
   • permitir cifrar ficheiros, guardando o resultado numa pasta chamada FALL-INTO-OBLIVION;
+  
   • calcular o valor de hash do ficheiro, guardando também o resultado junto com o criptograma (em ficheiros separados);
+  
   • gerar automaticamente um PIN, e usá-lo como chave para cifrar cada ficheiro;
+  
   • calcular o MAC dos criptogramas;
+  
   • permitir decifrar o ficheiro por via da adivinhação do PIN. Só devem ser permitidas até 3 tentativas;
+  
   • verificar a integridade do ficheiro no caso do PIN ter sido adivinhado.
 
 A aplicação pode correr em modo Client Line Interface (CLI) ou em modo gráfico (fica ao
@@ -25,8 +30,11 @@ em modo Cipher Block Chainign (AES-CBC) e Hash MAC Secure Hash Algorithm 256 (HM
 Podem fortalecer o trabalho e solidificar o conhecimento através da implementação das seguintes funcionalidades:
 
   • substituir os MACs por assinaturas digitais (o programa deve então também permitir gerar as chaves pública e privadas);
+  
   • permitir que o utilizador escolha a cifra a utilizar e o comprimento da chave de cifra;
+  
   • permitir que o utilizador escolha a função de hash a usar;
+  
   • ter um help completo e intuitivo.
 
 Uma versão muito básica deste trabalho pode utilizar chamadas ao sistema (comandos
