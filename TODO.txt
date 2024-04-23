@@ -1,2 +1,2 @@
-guardar o HMAC e HASH dentro do file?
-meter algo para ver se o chaves2.bin depois de ser decrhyptado tem o mesmo HASH e HMAC que o chaves.bin mesmo se o chaves.bin nao existir
+meter chaves numa diretoria qualquer escondida??
+meter original na pasta, ao decriptar mete-lo noutra diretoria ns qual
