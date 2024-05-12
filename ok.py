@@ -201,7 +201,7 @@ key = os.urandom(32) # a key ta aqui para testes, no final vai ser criada no mes
 while(True): # criar o ficheiro a.txt e meter algo la dentro pra testar
      
     e = os.listdir("./FALL-INTO-OBLIVION")
-    d = os.listdir("./Recuperação")
+    d = os.listdir("./Recuperacao")
 
     # Se a diretoria FALL-INTO-OBLIVION tiver algum ficheiro com a extensão de texto (txt), irá invocar a função de encriptação
     if len(e) > 0:
@@ -212,14 +212,14 @@ while(True): # criar o ficheiro a.txt e meter algo la dentro pra testar
                 # Após encriptar o ficheiro, remove o ficheiro original da pasta (Plaintext)
                 os.remove("./FALL-INTO-OBLIVION/"+i)
 
-    # Se a diretoria Recuperação tiver algum ficheiro com a extensão de texto (aes256), irá invocar a função de desencriptação
+    # Se a diretoria Recuperacao tiver algum ficheiro com a extensão de texto (aes256), irá invocar a função de desencriptação
     if len(d) > 0:
         for i in d:
             if i.endswith('.aes256'):
                 # Invoca a função decrypt com o ficheiro encriptado como input e devolve um ficheiro desencriptado para a pasta de Desencriptados após a inserção do pin correto
-                decrypt("./Recuperação/"+os.path.splitext(i)[0]+".aes256", "./Desencriptados/"+os.path.splitext(i)[0]+".txt")
-                # Após desencriptar o ficheiro, remove o criptograma da pasta de Recuperação
-                os.remove("./Recuperação/"+os.path.splitext(i)[0]+".aes256")
+                decrypt("./Recuperacao/"+os.path.splitext(i)[0]+".aes256", "./Desencriptados/"+os.path.splitext(i)[0]+".txt")
+                # Após desencriptar o ficheiro, remove o criptograma da pasta de Recuperacao
+                os.remove("./Recuperacao/"+os.path.splitext(i)[0]+".aes256")
     
     #Verifica as pastas a cada segundo
     time.sleep(1)
