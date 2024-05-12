@@ -2,44 +2,22 @@ import os
 import hashlib
 import hmac
 import random
+import time
 
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
 
-
-
-
-#-----------------------------------------------HASH---HMAC-----------------------------------------------
-# abre os ficheiros e calcula o HMAC e HASH, usa a mesma key que foi usada na encriptacao do file original
-def calc_hash_hmac(file_path,key):
-    with open(file_path, "rb") as f:
-        chunk_size = 4096
-        hasher = hashlib.sha256()
-        hmac_hasher = hmac.new(key, digestmod=hashlib.sha256)
-        while True:
-            chunk = f.read(chunk_size)
-            if not chunk:
-                break
-            hasher.update(chunk)
-            hmac_hasher.update(chunk)
-    
-    return [hasher.hexdigest(),hmac_hasher.hexdigest()]
-
-
-
-
-
 #-----------------------------------------------ENCRYPTAR-----------------------------------------------
 # encripta o file original (a.txt) com chaves random, guarda as chaves random no chaves.bin e encrypta-o 
-# , gera o PIN de 4 digitos para o user tentar decryptar depois
+# , gera o PIN de 3 a 4 digitos para o user tentar decryptar depois
 # METER FILE ENCRIPTADO NA PASTA FALL... E METER O chaves.bin NOUTRO SITIO NS ONDE---------------------------------------------------
 def encrypt(input_file, output_file, key):
 
-    # Gera o pin random de 4 digitos
-    pin = str(random.randint(1000,9999))
-    print("PINNNN --------" +pin)
+    # Gera o pin random de 3 a 4 digitos
+    pin = str(random.randint(100,9999))
+    print("PIN ("+input_file+") -> " +pin)
 
     # dar padding ao pin para ter caracteres suficientes para a key e iv
     pin_byte = pin.encode()
@@ -49,7 +27,7 @@ def encrypt(input_file, output_file, key):
     # calcular iv random, key no final vai tar aqui
     iv = os.urandom(16)
 
-    # ler o file que se quer encryptar
+    # ler o file que se quer encryptar em formato binário
     with open(input_file, 'rb') as f:
         plaintext = f.read()
 
@@ -118,7 +96,7 @@ def decrypt(input_file, output_file):
     contador = 3 # tentativas
 
     while(contador > 0):
-        pin = input("diz o pin para dar decrypt (tens mais "+str(contador)+" tentativas): ")
+        pin = input("Decrypt PIN ("+str(contador)+" Tentativas): ")
 
         # Fazer a mesma coisa com o pin la em cima, se o pin for o mesmo vai decryptar bem o ficheiro 
         # se nao vai dar erro e o try/catch vai apanhar diminuindo o numero de tentativas do pin
@@ -158,7 +136,7 @@ def decrypt(input_file, output_file):
             # comparar o hash e hmac do chaves antigo com o chaves agr para ver se sao iguais
             Nchaves = calc_hash_hmac("chaves.bin",key)
             if((Nchaves[0] == chaves_hash.decode("utf-8")) and (Nchaves[1] == chaves_hmac.decode("utf-8"))):
-                print("deu")
+                print("DEU")
 
 
             # Decriptar o ficheiro original
@@ -185,45 +163,88 @@ def decrypt(input_file, output_file):
         
         except: # try/catch ativa e tira uma tentativa
             contador = contador - 1
-            print("PIN errado")
+            print("PIN Errado")
     
     if(contador == 0): # 0 tentativas apaga o ficheir
-        print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nAcabaram as tentativas, apaguei o ficheiro")
-        #os.remove("a.txt")
+        print("\nEsgotou Tentativas -> Ficheiro Apagado\n")
     else:
-        print("decriptei o ficheiro")
-        # depois apagar o chaves.bin do ficheiro correspondente e tirar esse ficheiro do FALL-INTO-OBLIVION
+        print("Ficheiro Desencriptado -> Diretoria Desencriptados")
+        # Apagar o chaves.bin do ficheiro correspondente
 
     
+
+
+
+#-----------------------------------------------HASH---HMAC-----------------------------------------------
+# abre os ficheiros e calcula o HMAC e HASH, usa a mesma key que foi usada na encriptacao do file original
+def calc_hash_hmac(file_path,key):
+    with open(file_path, "rb") as f:
+        chunk_size = 4096
+        hasher = hashlib.sha256()
+        hmac_hasher = hmac.new(key, digestmod=hashlib.sha256)
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            hasher.update(chunk)
+            hmac_hasher.update(chunk)
+    
+    return [hasher.hexdigest(),hmac_hasher.hexdigest()]
+
+
 
 
 
 #-----------------------------------------------TESTES/MAIN-----------------------------------------------
 key = os.urandom(32) # a key ta aqui para testes, no final vai ser criada no mesmo sitio que o iv
-print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+
 while(True): # criar o ficheiro a.txt e meter algo la dentro pra testar
-    option = input("escreve 'e' para encryptar e 'd' para decryptar: ")
-    if option == 'e':
-        print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+     
+    e = os.listdir("./FALL-INTO-OBLIVION")
+    d = os.listdir("./Recuperação")
+
+    # Se a diretoria FALL-INTO-OBLIVION tiver algum ficheiro com a extensão de texto (txt), irá invocar a função de encriptação
+    if len(e) > 0:
+        for i in e:
+            if i.endswith('.txt'):
+                # Invoca a função encrypt com o ficheiro como input e devolve um ficheiro encriptado com a cifra AES256
+                encrypt("./FALL-INTO-OBLIVION/"+i, "./FALL-INTO-OBLIVION/"+os.path.splitext(i)[0]+".aes256", key)
+                # Após encriptar o ficheiro, remove o ficheiro original da pasta (Plaintext)
+                os.remove("./FALL-INTO-OBLIVION/"+i)
+
+    # Se a diretoria Recuperação tiver algum ficheiro com a extensão de texto (aes256), irá invocar a função de desencriptação
+    if len(d) > 0:
+        for i in d:
+            if i.endswith('.aes256'):
+                # Invoca a função decrypt com o ficheiro encriptado como input e devolve um ficheiro desencriptado para a pasta de Desencriptados após a inserção do pin correto
+                decrypt("./Recuperação/"+os.path.splitext(i)[0]+".aes256", "./Desencriptados/"+os.path.splitext(i)[0]+".txt")
+                # Após desencriptar o ficheiro, remove o criptograma da pasta de Recuperação
+                os.remove("./Recuperação/"+os.path.splitext(i)[0]+".aes256")
+    
+    #Verifica as pastas a cada segundo
+    time.sleep(1)
+
+
+    '''option = input("\nE/e -> Encrypt\nD/d -> Decrypt\nChosen Option: ")
+    if option == 'e' or option == 'E':
+        print("")
         encrypt("a.txt", "Ea.txt", key) 
-        '''
+        
         x = calc_hash_hmac("a.txt",key)
         x2 = calc_hash_hmac("Ea.txt",key)
         print("Hash a.txt: "+x[0])
         print("Hmac a.txt: "+x[1])
         print("Hash Ea.txt: "+x2[0])
         print("Hmac Ea.txt: "+x2[1])
-        '''
-    elif option == 'd':
-        print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+        
+    elif option == 'd' or option == 'D':
+        print("")
         decrypt("Ea.txt", "Da.txt")
-        '''
+
         x3 = calc_hash_hmac("Ea.txt",key)
         x4 = calc_hash_hmac("Da.txt",key)
         print("Hash Ea.txt: "+x3[0])
         print("Hmac Ea.txt: "+x3[1])
         print("Hash Da.txt: "+x4[0])
         print("Hmac Da.txt: "+x4[1])
-        '''
-
-
+    '''
