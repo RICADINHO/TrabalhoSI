@@ -1,2 +1,4 @@
-meter chaves numa diretoria qualquer escondida??
-meter original na pasta, ao decriptar mete-lo noutra diretoria ns qual
+Meter chaves numa diretoria qualquer escondida??
+Ao alterar o ficheiro no FALL-INTO-OBLIVION, após o check do HMAC e HASH não dá certo devido ao PIN. VER ISSO DEPOIS
+
+Meter original na pasta, ao decriptar mete-lo noutra diretoria ns qual -> FEITO
