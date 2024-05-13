@@ -1,4 +1,6 @@
 Meter chaves numa diretoria qualquer escondida??
 Ao alterar o ficheiro no FALL-INTO-OBLIVION, após o check do HMAC e HASH não dá certo devido ao PIN. VER ISSO DEPOIS
+IMPORTE: Ao meter mais dq um ficheiro antes de executar na pasta do FALL-INTO-OBLIVION cifra bem, POREM ao decifrar os PINS NÃO CORRESPONDEM
+Ao dar reset ao programa, caso haja ficheiros no FALL e se tenha gasto tentativas, as tentativas RESETAM
 
 Meter original na pasta, ao decriptar mete-lo noutra diretoria ns qual -> FEITO
