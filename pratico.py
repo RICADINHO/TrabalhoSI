@@ -301,6 +301,11 @@ key = os.urandom(32) # A key ta aqui para testes, no final vai ser criada no mes
 e = input("\n-----Caso queira recorrer ao manual carregue em H/h-----\n-----Caso queira prosseguir carregue em P/p-----\n\nEscolha: ")
 escolha = e.upper()
 
+# Array de ficheiros cifrados
+fc = []
+# Array de ficheiros para cifrar
+fpc = []
+
 # PARA TESTAR: Criar um ficheiro (de preferência fora da FALL...), mover o ficheiro para a FALL-INTO-OBLIVION, mover de seguida para o Recuperacao e meter o PIN
 while(True):
     match escolha:
@@ -315,11 +320,23 @@ while(True):
             # Se a diretoria FALL-INTO-OBLIVION tiver algum ficheiro com a extensão de texto (txt), irá invocar a função de encriptação
             if len(e) > 0:
                 for i in e:
-                    if i.endswith('.txt'):
+                    # File for Encryption
+                    ffenc = "./FALL-INTO-OBLIVION/"+i
+                    # Caso haja um ficheiro que foi introduzido na FALL... com o mesmo nome de um ficheiro que já foi cifrado anteriormente
+                    # Esse ficheiro introduzido assume-se como Erro e é movido para a pasta Repetidos
+                    if i in fpc:
+                        # Mover para a pasta Repetidos
+                        os.rename("./FALL-INTO-OBLIVION/"+i, "./Repetidos/"+i)
+                    # Se houver um ficheiro na pasta que não tenha sido cifrado anteriormente (Não se encontre no array de ficheiros cifrados)
+                    if os.path.exists(ffenc) and not(i in fc) and not(i in fpc):
+                        # Adicionar o nome original (antes de cifrar) do ficheiro ao array de ficheiros para cifrar
+                        fpc.append(i)
                         # Invoca a função encrypt com o ficheiro como input e devolve um ficheiro cifrado com a cifra AES256-cbc
-                        encrypt("./FALL-INTO-OBLIVION/"+i, "./FALL-INTO-OBLIVION/"+os.path.splitext(i)[0]+".aes256-cbc", key)
+                        encrypt(ffenc, "./FALL-INTO-OBLIVION/"+i+".aes256-cbc", key)
+                        # Junta o nome do ficheiro que já foi cifrado ao array
+                        fc.append(i+".aes256-cbc")
                         # Após cifrar o ficheiro, remove o ficheiro original da pasta FALL-INTO-OBLIVION (Plaintext)
-                        os.remove("./FALL-INTO-OBLIVION/"+i)
+                        os.remove(ffenc)
 
             # Se a diretoria Recuperacao tiver algum ficheiro com a extensão de texto (aes256-cbc), irá invocar a função de desencriptação
             if len(d) > 0:
@@ -335,28 +352,3 @@ while(True):
         case _:
             e = input("\n-----Caso queira recorrer ao manual carregue em H/h-----\n-----Caso queira prosseguir carregue em P/p-----\n\nEscolha: ")
             escolha = e.upper()
-
-
-    '''option = input("\nE/e -> Encrypt\nD/d -> Decrypt\nChosen Option: ")
-    if option == 'e' or option == 'E':
-        print("")
-        encrypt("a.txt", "Ea.txt", key) 
-        
-        x = calc_hash_hmac("a.txt",key)
-        x2 = calc_hash_hmac("Ea.txt",key)
-        print("Hash a.txt: "+x[0])
-        print("Hmac a.txt: "+x[1])
-        print("Hash Ea.txt: "+x2[0])
-        print("Hmac Ea.txt: "+x2[1])
-        
-    elif option == 'd' or option == 'D':
-        print("")
-        decrypt("Ea.txt", "Da.txt")
-
-        x3 = calc_hash_hmac("Ea.txt",key)
-        x4 = calc_hash_hmac("Da.txt",key)
-        print("Hash Ea.txt: "+x3[0])
-        print("Hmac Ea.txt: "+x3[1])
-        print("Hash Da.txt: "+x4[0])
-        print("Hmac Da.txt: "+x4[1])
-    '''
