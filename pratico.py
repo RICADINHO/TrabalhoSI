@@ -20,7 +20,7 @@ from cryptography.hazmat.primitives.asymmetric import padding as as_padding
 # Cifra o file original com chaves random, guarda as chaves random no chaves.bin e cifra-o 
 # Gera o PIN de 3 a 4 digitos para o user tentar decifrar depois
 # METER FILE CIFRADO NA PASTA FALL... E METER O chaves.bin NOUTRO SITIO NS ONDE---------------------------------------------------
-def encrypt(input_file, output_file, key):
+def encrypt(input_file, output_file, key, cipher_choice, key_length_choice):
 
     # HMAC E HASH VALUE DO FICHEIRO ORIGINAL
     # Obrigatório ser do tipo global para poder verificar o valor da mesma no Decrypt
@@ -38,7 +38,7 @@ def encrypt(input_file, output_file, key):
 
     # Dar padding ao pin para ter caracteres suficientes para a key e iv
     pin_byte = pin.encode()
-    key2 = pin_byte + b'=' * (32 - len(pin_byte))
+    key2 = pin_byte + b'=' * (int(key_length_choice) - len(pin_byte))
     iv2 = pin_byte + b'=' * (16 - len(pin_byte))
 
     # Calcular iv random, key no final vai tar aqui
@@ -49,11 +49,11 @@ def encrypt(input_file, output_file, key):
         plaintext = f.read()
 
     # Dá padding ao texto do ficheiro para ser múltiplo do bloco e não dar erro
-    padder = padding.PKCS7(algorithms.AES256.block_size).padder()
+    padder = padding.PKCS7(cipher_choice.block_size).padder()
     padded_plaintext = padder.update(plaintext) + padder.finalize()
 
     # Cifra o ficheiro com AES256 em modo Cipher-Block Chaining
-    cipher = Cipher(algorithms.AES256(key), modes.CBC(iv), backend=default_backend())
+    cipher = Cipher(cipher_choice(key), modes.CBC(iv), backend=default_backend())
     encryptor = cipher.encryptor()
     ciphertext = encryptor.update(padded_plaintext) + encryptor.finalize()
 
@@ -80,11 +80,11 @@ def encrypt(input_file, output_file, key):
     
 
     # Padding ao texto do chaves.bin
-    padder = padding.PKCS7(algorithms.AES256.block_size).padder()
+    padder = padding.PKCS7(cipher_choice.block_size).padder()
     padded_plaintext = padder.update(plaintext2) + padder.finalize()
 
     # Cifra o chaves.bin com o AES256 em modo CBC, o iv e key tem o valor do PIN
-    cipher = Cipher(algorithms.AES256(key2), modes.CBC(iv2), backend=default_backend())
+    cipher = Cipher(cipher_choice(key2), modes.CBC(iv2), backend=default_backend())
     encryptor = cipher.encryptor()
     ciphertext = encryptor.update(padded_plaintext) + encryptor.finalize()
 
@@ -109,7 +109,7 @@ def encrypt(input_file, output_file, key):
 #-----------------------------------------------DECRYPTAR-----------------------------------------------
 # Pede ao user o PIN para decifrar, se o user errar 3 vezes apaga o ficheiro original e das chaves,
 # Se acertar o PIN decifra o chaves.bin e usa as chaves la dentro para decifrar o ficheiro original
-def decrypt(input_file, output_file):
+def decrypt(input_file, output_file, cipher_choice, key_length_choice):
     
     # Nº de Tentativas
     contador = 3
@@ -122,7 +122,7 @@ def decrypt(input_file, output_file):
         # Fazer a mesma coisa com o pin la em cima, se o pin for o mesmo vai decifrar bem o ficheiro 
         # Se nao vai dar erro e o try/catch vai apanhar diminuindo o numero de tentativas do pin
         pin_byte = pin.encode()
-        key2 = pin_byte + b'=' * (32 - len(pin_byte))
+        key2 = pin_byte + b'=' * (int(key_length_choice) - len(pin_byte))
         iv2 = pin_byte + b'=' * (16 - len(pin_byte))
 
         try:
@@ -131,12 +131,12 @@ def decrypt(input_file, output_file):
                 ciphertext2 = f.read()
 
             # Decifrar o chave com o AES256 em CBC e o PIN introduzido pelo user
-            cipher = Cipher(algorithms.AES256(key2), modes.CBC(iv2), backend=default_backend())
+            cipher = Cipher(cipher_choice(key2), modes.CBC(iv2), backend=default_backend())
             decryptor = cipher.decryptor()
             padded_plaintext = decryptor.update(ciphertext2) + decryptor.finalize()
 
             # Tirar o padding que metemos no inicio
-            unpadder = padding.PKCS7(algorithms.AES256.block_size).unpadder()
+            unpadder = padding.PKCS7(cipher_choice.block_size).unpadder()
             plaintext2 = unpadder.update(padded_plaintext) + unpadder.finalize()
 
             # Abrir o chaves.bin para meter la o texto decifrado
@@ -165,12 +165,12 @@ def decrypt(input_file, output_file):
                 ciphertext = f.read()
 
             # Decifrar o ficheiro que queremos com as chaves que foram buscadas ao decifrar o chaves
-            cipher = Cipher(algorithms.AES256(key), modes.CBC(iv), backend=default_backend())
+            cipher = Cipher(cipher_choice(key), modes.CBC(iv), backend=default_backend())
             decryptor = cipher.decryptor()
             padded_plaintext = decryptor.update(ciphertext) + decryptor.finalize()
 
             # Tirar o padding outra vez
-            unpadder = padding.PKCS7(algorithms.AES256.block_size).unpadder()
+            unpadder = padding.PKCS7(cipher_choice.block_size).unpadder()
             plaintext = unpadder.update(padded_plaintext) + unpadder.finalize()
 
             # Meter o texto decifrado no ficheiro 
@@ -296,7 +296,12 @@ def ver_sig(input_file, priv_k, signature):
 
 
 #-----------------------------------------------TESTES/MAIN-----------------------------------------------
-key = os.urandom(32) # A key ta aqui para testes, no final vai ser criada no mesmo sitio que o iv
+ # A key ta aqui para testes, no final vai ser criada no mesmo sitio que o iv
+ 
+ # Variável a usar nas temrinações de ficheiros
+extension = ".txt"
+# Bool para determinar se a cifra já foi escolhida
+choice_bool = True
 
 e = input("\n-----Caso queira recorrer ao manual carregue em H/h-----\n-----Caso queira prosseguir carregue em P/p-----\n\nEscolha: ")
 escolha = e.upper()
@@ -315,7 +320,39 @@ while(True):
             escolha = "C"
         case "P":
             e = os.listdir("./FALL-INTO-OBLIVION")
-            d = os.listdir("./Recuperacao")
+            d = os.listdir("./Recuperacao")   
+            
+            # Se a cifra ainda não foi escolhida (choice_bool=True), pede ao utilizador para escolher a cifra e o tamanho da chave
+            if(choice_bool):
+                cipher_choice = input("Escolha a cifra a utilizar:\nA) AES \nB) Camellia\n> ")
+            
+                if cipher_choice.upper() == "A":
+                    cipher_choice = algorithms.AES
+                    extension = ".aes-cbc"
+                elif cipher_choice.upper() == "B":
+                    cipher_choice = algorithms.Camellia
+                    extension = ".camellia-cbc"
+                else:
+                    cipher_choice = algorithms.AES
+                    extension = ".aes-cbc"
+                    print("Escolha inválida, AES escolhida por defeito") 
+                     
+                key_length_choice = input("Escolha o tamanho da chave:\nA) 32 bytes \nB) 24 bytes \nC) 16 bytes \n> ")
+                
+                if key_length_choice.upper() == "A":
+                    key_length_choice = "32"
+                elif key_length_choice.upper() == "B":
+                    key_length_choice = "24"
+                elif key_length_choice.upper() == "C":
+                    key_length_choice = "16"                        
+                else:
+                    key_length_choice = "32"
+                    print("Escolha inválida, 32 bytes escolhida por defeito")   
+                                
+                # Gera uma chave random para a cifra
+                key = os.urandom(int(key_length_choice))
+                # Determina que a cifra já foi escolhida
+                choice_bool = False
 
             # Se a diretoria FALL-INTO-OBLIVION tiver algum ficheiro com a extensão de texto (txt), irá invocar a função de encriptação
             if len(e) > 0:
@@ -331,21 +368,21 @@ while(True):
                     if os.path.exists(ffenc) and not(i in fc) and not(i in fpc):
                         # Adicionar o nome original (antes de cifrar) do ficheiro ao array de ficheiros para cifrar
                         fpc.append(i)
-                        # Invoca a função encrypt com o ficheiro como input e devolve um ficheiro cifrado com a cifra AES256-cbc
-                        encrypt(ffenc, "./FALL-INTO-OBLIVION/"+i+".aes256-cbc", key)
+                        # Invoca a função encrypt com o ficheiro como input e devolve um ficheiro cifrado com a cifra escolhida
+                        encrypt(ffenc, "./FALL-INTO-OBLIVION/"+i+extension, key, cipher_choice, key_length_choice)
                         # Junta o nome do ficheiro que já foi cifrado ao array
-                        fc.append(i+".aes256-cbc")
+                        fc.append(i+extension)
                         # Após cifrar o ficheiro, remove o ficheiro original da pasta FALL-INTO-OBLIVION (Plaintext)
                         os.remove(ffenc)
 
             # Se a diretoria Recuperacao tiver algum ficheiro com a extensão de texto (aes256-cbc), irá invocar a função de desencriptação
             if len(d) > 0:
                 for i in d:
-                    if i.endswith('.aes256-cbc'):
+                    if i.endswith(extension):
                         # Invoca a função decrypt com o ficheiro cifrado como input e devolve um ficheiro decifrado para a pasta de Decifrados após a inserção do pin correto
-                        decrypt("./Recuperacao/"+os.path.splitext(i)[0]+".aes256-cbc", "./Decifrados/"+os.path.splitext(i)[0]+".txt")
+                        decrypt("./Recuperacao/"+os.path.splitext(i)[0]+extension, "./Decifrados/"+os.path.splitext(i)[0]+".txt", cipher_choice, key_length_choice)
                         # Após decifrar o ficheiro, remove o criptograma da pasta de Recuperacao
-                        os.remove("./Recuperacao/"+os.path.splitext(i)[0]+".aes256-cbc")
+                        os.remove("./Recuperacao/"+os.path.splitext(i)[0]+extension)
             
             #Verifica as pastas a cada segundo
             time.sleep(1)
