@@ -32,6 +32,8 @@ def encrypt(input_file, output_file, key, cipher_choice, key_length_choice):
     # Na criação de variáveis em separado, corria a função duas vezes, gerava duas assinaturas diferentes
     file_sign = dig_sig(input_file)
 
+
+    # ------------ PIN ------------
     # Gera o pin random de 3 a 4 digitos
     pin = str(random.randint(100,9999))
     print("PIN ("+input_file+") -> " +pin)
@@ -41,6 +43,8 @@ def encrypt(input_file, output_file, key, cipher_choice, key_length_choice):
     key2 = pin_byte + b'=' * (int(key_length_choice) - len(pin_byte))
     iv2 = pin_byte + b'=' * (16 - len(pin_byte))
 
+    
+    # ------------ FICHEIRO ------------
     # Calcular iv random, key no final vai tar aqui
     iv = os.urandom(16)
 
@@ -60,23 +64,22 @@ def encrypt(input_file, output_file, key, cipher_choice, key_length_choice):
     # METER CHAVES E TEXTO EM FILES SEPARADOS
     with open(output_file, 'wb') as f:
         f.write(ciphertext)
-    with open("chaves.bin", 'wb') as f:
+
+    # ------------ CHAVE ------------
+    chave = output_file+".bin"
+    with open(chave, 'wb') as f:
         f.write(iv + key)
 
     # Calcular o hash e hmac do chaves original
-    hmac_hash = calc_hash_hmac("chaves.bin", key)
+    hmac_hash = calc_hash_hmac(chave, key)
 
     # Meter o hash e hmac no chaves
-    with open("chaves.bin", 'wb') as f:
+    with open(chave, 'wb') as f:
         f.write(str.encode(hmac_hash[0]) + str.encode(hmac_hash[1]) + iv + key)
 
     # Abrir o chaves.bin para cifrar as keys
-    with open("chaves.bin", 'rb') as f:
+    with open(chave, 'rb') as f:
         plaintext2 = f.read()
-    
-
-    #print(hmac_hash[0])
-    #print(hmac_hash[1])
     
 
     # Padding ao texto do chaves.bin
@@ -89,18 +92,13 @@ def encrypt(input_file, output_file, key, cipher_choice, key_length_choice):
     ciphertext = encryptor.update(padded_plaintext) + encryptor.finalize()
 
     # Meter as keys cifradas noutro .bin (n é uma boa soluçao, depois mudar e fazer algo com o hash e hmac para comprar)
-    with open("chaves.bin", 'wb') as f:
+    with open(chave, 'wb') as f:
         f.write(ciphertext)
 
-    '''
-    x1 = calc_hash_hmac("chaves.bin",key2)
-    x2 = calc_hash_hmac("chaves2.bin",key2)
-    print("hash chaves: "+x1[0])
-    print("hmac chaves: "+x1[1])
-    print("hash chaves2: "+x2[0])
-    print("hmac chaves2: "+x2[1])
-    '''
-    print("Chave e Ficheiro Cifrados")
+    # Mover o ficheiro já cifrado para a pasta FALL-INTO-OBLIVION    
+    os.rename(output_file, "./FALL-INTO-OBLIVION/"+output_file)
+    # Mover a chave já cifrada para a pasta de Chaves
+    os.rename(chave, "./Chaves/"+chave)
 
 
 
@@ -117,6 +115,7 @@ def decrypt(input_file, output_file, cipher_choice, key_length_choice):
     # Enquanto tiver tentativas restantes continua o programa
     while(contador > 0):
 
+        # ------------ PIN ------------
         pin = input("\nDecrypt PIN ("+str(contador)+" Tentativas): ")
 
         # Fazer a mesma coisa com o pin la em cima, se o pin for o mesmo vai decifrar bem o ficheiro 
@@ -126,8 +125,12 @@ def decrypt(input_file, output_file, cipher_choice, key_length_choice):
         iv2 = pin_byte + b'=' * (16 - len(pin_byte))
 
         try:
+            # ------------ CHAVE ------------
+
+            chave = "./Chaves/"+input_file+".bin"
+
             # Tentar decifrar o ficheiro das chaves cifradas e o ficheiro do texto cifrado
-            with open("chaves.bin", 'rb') as f:
+            with open(chave, 'rb') as f:
                 ciphertext2 = f.read()
 
             # Decifrar o chave com o AES256 em CBC e o PIN introduzido pelo user
@@ -140,28 +143,28 @@ def decrypt(input_file, output_file, cipher_choice, key_length_choice):
             plaintext2 = unpadder.update(padded_plaintext) + unpadder.finalize()
 
             # Abrir o chaves.bin para meter la o texto decifrado
-            with open("chaves.bin", 'wb') as f:
+            with open(chave, 'wb') as f:
                 f.write(plaintext2)
 
             # Ler chave,in,hash,hmac e mete-los em variaveis
-            with open("chaves.bin", 'rb') as f:
+            with open(chave, 'rb') as f:
                 chaves_hash = f.read(64)
                 chaves_hmac = f.read(64)
                 iv = f.read(16)
                 key = f.read(32)
 
             # Meter no chaves apenas o iv e key para ficar igual ao original
-            with open("chaves.bin", 'wb') as f:
+            with open(chave, 'wb') as f:
                 f.write(iv + key)
 
             # Comparar o hash e hmac do chaves antigo com o chaves agr para ver se sao iguais
-            Nchaves = calc_hash_hmac("chaves.bin",key)
+            Nchaves = calc_hash_hmac(chave, key)
             if((Nchaves[0] == chaves_hash.decode("utf-8")) and (Nchaves[1] == chaves_hmac.decode("utf-8"))):
                 print("DEU")
 
-
+            # ------------ FICHEIRO ------------
             # Decifrar o ficheiro original
-            with open(input_file, 'rb') as f:
+            with open("./Recuperacao/"+input_file, 'rb') as f:
                 ciphertext = f.read()
 
             # Decifrar o ficheiro que queremos com as chaves que foram buscadas ao decifrar o chaves
@@ -187,7 +190,9 @@ def decrypt(input_file, output_file, cipher_choice, key_length_choice):
     
     if(contador == 0): # 0 tentativas -> Apaga o ficheiro
         print("\nEsgotou Tentativas -> Ficheiro Apagado\n")
-    else:
+        # Elimina a Key dedicada ao output_file
+        os.remove(chave)
+    else: # ACERTOU O PIN
 
         # Calcula o HMAC E HASH VALUE DO FICHEIRO DECIFRADO
         hmac_hashFD = calc_hash_hmac(output_file, key)
@@ -203,6 +208,11 @@ def decrypt(input_file, output_file, cipher_choice, key_length_choice):
             # Apagar o chaves.bin do ficheiro correspondente
         else: # Se o valor hash do message authenticator do ficheiro original for diferente do ficheiro decifrado, os ficheiros sofreram alteração
             print("Ficheiro Decifrado PORÉM Alterado -> Diretoria Decifrado")
+            
+        # Elimina a Key dedicada ao output_file
+        os.remove(chave)
+        # Move o output_file para a pasta dos decifrados
+        os.rename(output_file, "./Decifrados/"+output_file)
 
     
 
@@ -369,7 +379,7 @@ while(True):
                         # Adicionar o nome original (antes de cifrar) do ficheiro ao array de ficheiros para cifrar
                         fpc.append(i)
                         # Invoca a função encrypt com o ficheiro como input e devolve um ficheiro cifrado com a cifra escolhida
-                        encrypt(ffenc, "./FALL-INTO-OBLIVION/"+i+extension, key, cipher_choice, key_length_choice)
+                        encrypt(ffenc, i+extension, key, cipher_choice, key_length_choice)
                         # Junta o nome do ficheiro que já foi cifrado ao array
                         fc.append(i+extension)
                         # Após cifrar o ficheiro, remove o ficheiro original da pasta FALL-INTO-OBLIVION (Plaintext)
@@ -380,9 +390,12 @@ while(True):
                 for i in d:
                     if i.endswith(extension):
                         # Invoca a função decrypt com o ficheiro cifrado como input e devolve um ficheiro decifrado para a pasta de Decifrados após a inserção do pin correto
-                        decrypt("./Recuperacao/"+os.path.splitext(i)[0]+extension, "./Decifrados/"+os.path.splitext(i)[0]+".txt", cipher_choice, key_length_choice)
+                        decrypt(os.path.splitext(i)[0]+extension, os.path.splitext(i)[0], cipher_choice, key_length_choice)
                         # Após decifrar o ficheiro, remove o criptograma da pasta de Recuperacao
                         os.remove("./Recuperacao/"+os.path.splitext(i)[0]+extension)
+                        # Remove o ficheiro já decifrado do array dos ficheiros para cifrar e do array dos ficheiros cifrados
+                        fc.remove(os.path.splitext(i)[0]+extension)
+                        fpc.remove(os.path.splitext(i)[0])
             
             #Verifica as pastas a cada segundo
             time.sleep(1)
