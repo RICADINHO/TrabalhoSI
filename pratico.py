@@ -14,6 +14,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 # Preciso meter uma variável para evitar conflitos com o padding importado em cima
 from cryptography.hazmat.primitives.asymmetric import padding as as_padding
 
+from pathlib import Path
+
 
 
 #-----------------------------------------------ENCRYPTAR-----------------------------------------------
@@ -144,7 +146,7 @@ def decrypt(input_file, output_file, cipher_choice, key_length_choice, hash_choi
             with open(chave, 'wb') as f:
                 f.write(plaintext2)
 
-            # Ler chave,in,hash,hmac e mete-los em variaveis
+            # Ler chave,iv,hash,hmac e mete-los em variaveis
             with open(chave, 'rb') as f:
                 chaves_hash = f.read(64)
                 chaves_hmac = f.read(64)
@@ -178,7 +180,12 @@ def decrypt(input_file, output_file, cipher_choice, key_length_choice, hash_choi
             with open(output_file, 'wb') as f:
                 f.write(plaintext)
 
-
+            # verifica se já existe um ficheiro com o mesmo nome no "Decifrados", caso exista paga-o
+            for a in os.scandir("Decifrados"): 
+                if str(a).split("'")[1] == output_file:
+                    os.remove(a)
+                    print("removi "+output_file)
+            
             # Caso tenha acertado o contador fica a -4 pra no final fazer o check de apagar o ficheiro
             contador = -4
         
@@ -212,7 +219,7 @@ def decrypt(input_file, output_file, cipher_choice, key_length_choice, hash_choi
         # Move o output_file para a pasta dos decifrados
         os.rename(output_file, "./Decifrados/"+output_file)
 
-    
+
 
 
 
@@ -301,6 +308,35 @@ def ver_sig(input_file, priv_k, signature, hash_choice):
     except: # Se a assinatura não corresponder
         return False
 
+#-----------------------------------------------CHECKS-----------------------------------------------
+def check_ficheiros():
+    ficheiros = os.scandir(os.getcwd())
+
+    pastas = []
+    files = ["FALL-INTO-OBLIVION","Chaves","Decifrados","Recuperacao","Repetidos"]
+
+    for i in ficheiros: # guarda todas as pastas da diretoria atual
+        if i.is_dir():
+            pastas.append(str(i.name))
+    
+    for i in files: # verifica se alguma pasta é uma das pastas que o programa precisa
+        if i in pastas:
+            if os.listdir(i): # se já existir vê se tem algo la dentro, se sim apaga
+                for i2 in os.scandir(i):
+                    os.remove(i2)
+        else:
+            os.mkdir(i) # se nao tiver a pasta presente, cria uma nova
+
+def check_pastas(nome): # retorna apenas os ficheiros que não sao pastas
+    pastas = os.scandir(nome)
+    e = []
+
+    for i in pastas:
+        if i.is_dir() == False:
+            e.append(str(i.name))
+    
+    return e
+    
 
 
 #-----------------------------------------------TESTES/MAIN-----------------------------------------------
@@ -310,6 +346,9 @@ def ver_sig(input_file, priv_k, signature, hash_choice):
 extension = ".txt"
 # Bool para determinar se a cifra já foi escolhida
 choice_bool = True
+
+# verificar se o programa esta em condicoes de comecar
+check_ficheiros()
 
 e = input("\n-----Caso queira recorrer ao manual carregue em H/h-----\n-----Caso queira prosseguir carregue em P/p-----\n\nEscolha: ")
 escolha = e.upper()
@@ -327,7 +366,7 @@ while(True):
             # CANCELAR O LOOP
             escolha = "C"
         case "P":
-            e = os.listdir("./FALL-INTO-OBLIVION")
+            e = check_pastas("./FALL-INTO-OBLIVION")
             d = os.listdir("./Recuperacao")   
             
             # Se a cifra ainda não foi escolhida (choice_bool=True), pede ao utilizador para escolher a cifra e o tamanho da chave
@@ -384,6 +423,7 @@ while(True):
                     # Esse ficheiro introduzido assume-se como Erro e é movido para a pasta Repetidos
                     if i in fpc:
                         # Mover para a pasta Repetidos
+                        print("estou aqui 2")
                         os.rename("./FALL-INTO-OBLIVION/"+i, "./Repetidos/"+i)
                     # Se houver um ficheiro na pasta que não tenha sido cifrado anteriormente (Não se encontre no array de ficheiros cifrados)
                     if os.path.exists(ffenc) and not(i in fc) and not(i in fpc):
@@ -395,6 +435,7 @@ while(True):
                         fc.append(i+extension)
                         # Após cifrar o ficheiro, remove o ficheiro original da pasta FALL-INTO-OBLIVION (Plaintext)
                         os.remove(ffenc)
+                        print("estou aqui 1")
 
             # Se a diretoria Recuperacao tiver algum ficheiro com a extensão de texto (aes256-cbc), irá invocar a função de desencriptação
             if len(d) > 0:
