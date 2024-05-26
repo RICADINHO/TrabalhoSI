@@ -13,6 +13,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric import rsa
 # Preciso meter uma variável para evitar conflitos com o padding importado em cima
 from cryptography.hazmat.primitives.asymmetric import padding as as_padding
+from cryptography.hazmat.primitives import serialization
 
 from pathlib import Path
 
@@ -25,12 +26,9 @@ from pathlib import Path
 def encrypt(input_file, output_file, key, cipher_choice, key_length_choice, hash_choice, hasher_choice):
 
     # HMAC E HASH VALUE DO FICHEIRO ORIGINAL
-    # Obrigatório ser do tipo global para poder verificar o valor da mesma no Decrypt
-    global hmac_hashFO 
     hmac_hashFO = calc_hash_hmac(input_file, key, hasher_choice)
     
     # Gera as Chaves Privada e Pública, devolve a Chave Privada e a Assinatura
-    global file_sign
     # Na criação de variáveis em separado, corria a função duas vezes, gerava duas assinaturas diferentes
     file_sign = dig_sig(input_file, hash_choice)
 
@@ -56,7 +54,7 @@ def encrypt(input_file, output_file, key, cipher_choice, key_length_choice, hash
     padder = padding.PKCS7(cipher_choice.block_size).padder()
     padded_plaintext = padder.update(plaintext) + padder.finalize()
 
-    # Cifra o ficheiro com AES256 em modo Cipher-Block Chaining
+    # Cifra o ficheiro em modo Cipher-Block Chaining
     cipher = Cipher(cipher_choice(key), modes.CBC(iv), backend=default_backend())
     encryptor = cipher.encryptor()
     ciphertext = encryptor.update(padded_plaintext) + encryptor.finalize()
@@ -72,10 +70,18 @@ def encrypt(input_file, output_file, key, cipher_choice, key_length_choice, hash
 
     # Calcular o hash e hmac do chaves original
     hmac_hash = calc_hash_hmac(chave, key, hasher_choice)
-
-    # Meter o hash e hmac no chaves
+    pkey_bytes = file_sign[0].private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=serialization.NoEncryption()
+    )
+    
+    # Meter o hash e hmac das chaves e ficheiro original e a signature e private key no chaves
     with open(chave, 'wb') as f:
         f.write(str.encode(hmac_hash[0]) + str.encode(hmac_hash[1]) + iv + key)
+        f.write(str.encode(hmac_hashFO[0]) + str.encode(hmac_hashFO[1]))
+        f.write(file_sign[1])
+        f.write(pkey_bytes)
 
     # Abrir o chaves.bin para cifrar as keys
     with open(chave, 'rb') as f:
@@ -86,7 +92,7 @@ def encrypt(input_file, output_file, key, cipher_choice, key_length_choice, hash
     padder = padding.PKCS7(cipher_choice.block_size).padder()
     padded_plaintext = padder.update(plaintext2) + padder.finalize()
 
-    # Cifra o chaves.bin com o AES256 em modo CBC, o iv e key tem o valor do PIN
+    # Cifra o chaves.bin, o iv e key tem o valor do PIN
     cipher = Cipher(cipher_choice(key2), modes.CBC(iv2), backend=default_backend())
     encryptor = cipher.encryptor()
     ciphertext = encryptor.update(padded_plaintext) + encryptor.finalize()
@@ -146,12 +152,22 @@ def decrypt(input_file, output_file, cipher_choice, key_length_choice, hash_choi
             with open(chave, 'wb') as f:
                 f.write(plaintext2)
 
-            # Ler chave,iv,hash,hmac e mete-los em variaveis
+            # Ler chave,iv,hash,hmac das chaves e ficheiro original e mete-los em variaveis
             with open(chave, 'rb') as f:
                 chaves_hash = f.read(64)
                 chaves_hmac = f.read(64)
                 iv = f.read(16)
                 key = f.read(32)
+                ficheiro_hash = f.read(64)
+                ficheiro_hmac = f.read(64)
+                ficheiro_sign = f.read(256)
+                ficheiro_pkey_encoded = f.read()
+                ficheiro_pkey = serialization.load_pem_private_key(
+                                    ficheiro_pkey_encoded,
+                                    password=None
+                                )
+            #Meter o hash e hmac do ficheiro original num array para comparar com o ficheiro decifrado   
+            FO_hash = [ficheiro_hash.decode("utf-8"), ficheiro_hmac.decode("utf-8")]     
 
             # Meter no chaves apenas o iv e key para ficar igual ao original
             with open(chave, 'wb') as f:
@@ -203,12 +219,12 @@ def decrypt(input_file, output_file, cipher_choice, key_length_choice, hash_choi
         hmac_hashFD = calc_hash_hmac(output_file, key, hasher_choice)
 
         # Verificar a Assinatura do ficheiro de Output/Decifrado
-        if( ver_sig(output_file, file_sign[0], file_sign[1], hash_choice) ):
+        if( ver_sig(output_file, ficheiro_pkey, ficheiro_sign, hash_choice) ):
             print("\nFicheiro com Assinatura Válida")
         else:
             print("\nFicheiro com Assinatura Inválida")
 
-        if hmac_hashFD == hmac_hashFO: # Se o valor hash do message authenticator do ficheiro original for igual do ficheiro decifrado, os ficheiros não sofreram alteração
+        if hmac_hashFD == FO_hash: # Se o valor hash do message authenticator do ficheiro original for igual do ficheiro decifrado, os ficheiros não sofreram alteração
             print("Ficheiro Decifrado -> Diretoria Decifrado")
             # Apagar o chaves.bin do ficheiro correspondente
         else: # Se o valor hash do message authenticator do ficheiro original for diferente do ficheiro decifrado, os ficheiros sofreram alteração
@@ -228,7 +244,7 @@ def decrypt(input_file, output_file, cipher_choice, key_length_choice, hash_choi
 def calc_hash_hmac(file_path, key, hasher_choice):
     with open(file_path, "rb") as f:
         chunk_size = 4096
-        # Inicializa um Hash com o Algoritmo AES256
+        # Inicializa um Hash
         hasher = hasher_choice()
         # Inicializa um HMAC com a key dada como input
         hmac_hasher = hmac.new(key, digestmod=hasher_choice)
@@ -240,7 +256,7 @@ def calc_hash_hmac(file_path, key, hasher_choice):
             hasher.update(chunk)
             hmac_hasher.update(chunk)
     
-    # Dá return com os valores do Hash(AES256) e HMAC em hexadecimal na forma de array de tamanho 2
+    # Dá return com os valores do Hash e HMAC em hexadecimal na forma de array de tamanho 2
     return [hasher.hexdigest(), hmac_hasher.hexdigest()]
 
 
@@ -249,9 +265,6 @@ def calc_hash_hmac(file_path, key, hasher_choice):
 
 #-----------------------------------------------Dig. Signature-----------------------------------------------
 def dig_sig(input_file, hash_choice):
-
-    # Para poder verificar a assinatura com a assinutura resultante desta função
-    global signature
 
     # Gera uma chave privada com public_exponent e tamanho recomendados pela documentação
     priv_k = rsa.generate_private_key(
@@ -369,7 +382,7 @@ while(True):
             e = check_pastas("./FALL-INTO-OBLIVION")
             d = os.listdir("./Recuperacao")   
             
-            # Se a cifra ainda não foi escolhida (choice_bool=True), pede ao utilizador para escolher a cifra e o tamanho da chave
+            # Se a cifra, tamamho de chave e hash ainda não tenham sido escolhidos (choice_bool=True), pede ao utilizador para os escolher
             if(choice_bool):
                 cipher_choice = input("Escolha a cifra a utilizar:\nA) AES \nB) Camellia\n> ")
             
@@ -437,7 +450,7 @@ while(True):
                         os.remove(ffenc)
                         print("estou aqui 1")
 
-            # Se a diretoria Recuperacao tiver algum ficheiro com a extensão de texto (aes256-cbc), irá invocar a função de desencriptação
+            # Se a diretoria Recuperacao tiver algum ficheiro com a extensão de encriptado, irá invocar a função de desencriptação
             if len(d) > 0:
                 for i in d:
                     if i.endswith(extension):
