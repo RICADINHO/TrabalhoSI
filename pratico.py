@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import random
 import time
+import sys
 
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -114,7 +115,6 @@ def encrypt(input_file, output_file, key, cipher_choice, key_length_choice, hash
 # Pede ao user o PIN para decifrar, se o user errar 3 vezes apaga o ficheiro original e das chaves,
 # Se acertar o PIN decifra o chaves.bin e usa as chaves la dentro para decifrar o ficheiro original
 def decrypt(input_file, output_file, cipher_choice, key_length_choice, hash_choice, hasher_choice):
-    
     # Nº de Tentativas
     contador = 3
 
@@ -157,7 +157,7 @@ def decrypt(input_file, output_file, cipher_choice, key_length_choice, hash_choi
                 chaves_hash = f.read(64)
                 chaves_hmac = f.read(64)
                 iv = f.read(16)
-                key = f.read(32)
+                key = f.read(int(key_length_choice))
                 ficheiro_hash = f.read(64)
                 ficheiro_hmac = f.read(64)
                 ficheiro_sign = f.read(256)
@@ -166,6 +166,7 @@ def decrypt(input_file, output_file, cipher_choice, key_length_choice, hash_choi
                                     ficheiro_pkey_encoded,
                                     password=None
                                 )
+
             #Meter o hash e hmac do ficheiro original num array para comparar com o ficheiro decifrado   
             FO_hash = [ficheiro_hash.decode("utf-8"), ficheiro_hmac.decode("utf-8")]     
 
